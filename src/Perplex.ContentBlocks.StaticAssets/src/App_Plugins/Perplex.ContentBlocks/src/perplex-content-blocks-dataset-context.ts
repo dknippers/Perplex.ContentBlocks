@@ -13,12 +13,15 @@ import {
 import { UmbContextToken } from "@umbraco-cms/backoffice/context-api";
 import { create } from "mutative";
 import { PerplexContentBlocksBlock, PerplexContentBlocksBlockOnChangeFn } from "./perplex-content-blocks";
+import { propertyAliasPrefix } from "./perplex-content-blocks-block";
 
 export class PerplexContentBlocksPropertyDatasetContext extends UmbControllerBase implements UmbPropertyDatasetContext {
     #block: PerplexContentBlocksBlock;
     #content: UmbObjectState<UmbBlockDataModel>;
     #token = new UmbContextToken<PerplexContentBlocksPropertyDatasetContext>("UmbPropertyDatasetContext");
     #properties = new UmbArrayState<UmbPropertyValueData>([], x => x.alias);
+
+    #PROPERTY_ALIAS_PREFIX_LENGTH: number;
 
     #onChange: (block: PerplexContentBlocksBlock) => void;
 
@@ -46,6 +49,7 @@ export class PerplexContentBlocksPropertyDatasetContext extends UmbControllerBas
         this.#block = block;
         this.#content = new UmbObjectState<UmbBlockDataModel>(this.#block.content);
         this.#onChange = onChange;
+        this.#PROPERTY_ALIAS_PREFIX_LENGTH = propertyAliasPrefix(this.#block).length;
 
         this.properties = this.#properties.asObservable();
 
@@ -67,8 +71,7 @@ export class PerplexContentBlocksPropertyDatasetContext extends UmbControllerBas
     propertyVariantId?: ((propertyAlias: string) => Promise<Observable<UmbVariantId | undefined>>) | undefined;
 
     cleanAlias(alias: string): string {
-        // Skip past the '<BLOCK_ID>_' part.
-        return alias.substring(37);
+        return alias.substring(this.#PROPERTY_ALIAS_PREFIX_LENGTH);
     }
 
     async propertyValueByAlias<ReturnType = unknown>(propertyAlias: string) {

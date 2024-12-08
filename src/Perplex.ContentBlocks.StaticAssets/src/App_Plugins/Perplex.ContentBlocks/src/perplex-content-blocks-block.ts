@@ -7,6 +7,10 @@ import { UmbDocumentTypeDetailModel, UmbDocumentTypeDetailRepository } from "@um
 import { UmbDataTypeDetailModel, UmbDataTypeDetailRepository } from "@umbraco-cms/backoffice/data-type";
 import { UMB_VALIDATION_CONTEXT, UmbValidationController } from "@umbraco-cms/backoffice/validation";
 
+export function propertyAliasPrefix(block: PerplexContentBlocksBlock): string {
+    return block.id + "_";
+}
+
 @customElement("perplex-content-blocks-block")
 export default class PerplexContentBlocksBlockElement extends UmbLitElement {
     @state()
@@ -121,7 +125,7 @@ export default class PerplexContentBlocksBlockElement extends UmbLitElement {
 
                         return html`<umb-property
                             .dataPath=${this.dataPath}
-                            .alias=${this.block.id + "_" + property.alias}
+                            .alias=${propertyAliasPrefix(this.block) + property.alias}
                             .label=${property.name}
                             .description=${property.description}
                             .appearance=${property.appearance}
