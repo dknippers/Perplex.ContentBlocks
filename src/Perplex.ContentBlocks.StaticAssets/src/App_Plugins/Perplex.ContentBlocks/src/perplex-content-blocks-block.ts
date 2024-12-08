@@ -4,6 +4,7 @@ import type { UmbPropertyTypeModel } from "@umbraco-cms/backoffice/content-type"
 import { PerplexContentBlocksPropertyDatasetContext } from "./perplex-content-blocks-dataset-context";
 import { PerplexContentBlocksBlock, PerplexContentBlocksBlockOnChangeFn } from "./perplex-content-blocks";
 import { UmbDocumentTypeDetailModel, UmbDocumentTypeDetailRepository } from "@umbraco-cms/backoffice/document-type";
+import { UmbDataTypeDetailModel, UmbDataTypeDetailRepository } from "@umbraco-cms/backoffice/data-type";
 import { UMB_VALIDATION_CONTEXT, UmbValidationController } from "@umbraco-cms/backoffice/validation";
 
 @customElement("perplex-content-blocks-block")
@@ -13,6 +14,12 @@ export default class PerplexContentBlocksBlockElement extends UmbLitElement {
 
     #contentTypeRepository = new UmbDocumentTypeDetailRepository(this);
     elementType!: UmbDocumentTypeDetailModel;
+
+    #dataTypeRepository = new UmbDataTypeDetailRepository(this);
+
+    #dataTypes: {
+        [key: string]: UmbDataTypeDetailModel;
+    } = {};
 
     @state()
     properties: UmbPropertyTypeModel[] | undefined = undefined;
@@ -77,6 +84,16 @@ export default class PerplexContentBlocksBlockElement extends UmbLitElement {
         this.elementType = elementTypeResponse.data;
         new PerplexContentBlocksPropertyDatasetContext(this, this.block, this.onChange);
 
+        // TODO: Fetch only the distinct dataTypes + in parallel
+        for (const property of this.elementType.properties) {
+            const dataTypeResponse = await this.#dataTypeRepository.requestByUnique(property.dataType.unique);
+            if (dataTypeResponse.data == null) {
+                throw new Error(`Cannot retrieve data type ${property.dataType.unique}`);
+            }
+
+            this.#dataTypes[property.dataType.unique] = dataTypeResponse.data;
+        }
+
         this.ok = true;
     }
 
@@ -98,11 +115,22 @@ export default class PerplexContentBlocksBlockElement extends UmbLitElement {
                 ${repeat(
                     this.elementType.properties,
                     property => property.id,
-                    property =>
-                        html`<umb-property-type-based-property
-                            .property=${property}
-                            .dataPath=${`${this.dataPath}.${this.block.id}.${property.alias}`}
-                        ></umb-property-type-based-property>`
+                    property => {
+                        const dataType = this.#dataTypes[property.dataType.unique];
+                        if (dataType == null) throw new Error("missing data type");
+
+                        return html`<umb-property
+                            .dataPath=${this.dataPath}
+                            .alias=${this.block.id + "_" + property.alias}
+                            .label=${property.name}
+                            .description=${property.description}
+                            .appearance=${property.appearance}
+                            property-editor-ui-alias=${dataType.editorUiAlias}
+                            .config=${dataType.values}
+                            .validation=${property.validation}
+                        >
+                        </umb-property>`;
+                    }
                 )}
             </div>
             <button type="button" class="remove-block" @click=${this.removeBlock.bind(null, this.block.content.key)}>
